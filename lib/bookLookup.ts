@@ -1,6 +1,14 @@
 import { fetchJson } from "./fetchJson";
 import { getIsbnVariants } from "./isbnConvert";
 import { normalizeIsbn } from "./isbn";
+import {
+  bookNeedsEnrichment,
+  mergeLookupBooks,
+} from "./mergeLookupBook";
+import {
+  lookupKitapvekahve,
+  lookupSahafsalih,
+} from "./providers/dokuzsoft";
 import { lookupHarikakitap } from "./providers/harikakitap";
 import type { BookLookupResponse, LookupBook, LookupSource } from "./types";
 
@@ -369,21 +377,93 @@ type Provider = {
   lookup: (isbn: string) => Promise<LookupBook | null>;
 };
 
-/**
- * Arama sırası:
- * 1. Harikakitap.com (Türkçe yayınlar — API anahtarı gerekmez)
- * 2. Hardcover.app (HARDCOVER_API_TOKEN)
- * 3. Google Books (GOOGLE_BOOKS_API_KEY)
- * 4. Open Library — bibkeys, search.json, isbn/{isbn}.json
- */
-const PROVIDERS: Provider[] = [
-  { name: "harikakitap", lookup: lookupHarikakitap },
+const PRIMARY_PROVIDER: Provider = {
+  name: "harikakitap",
+  lookup: lookupHarikakitap,
+};
+
+/** Harikakitap'ta yoksa denenen Türkçe kaynaklar (Dokuzsoft autocomplete API). */
+const TURKISH_FALLBACK_PROVIDERS: Provider[] = [
+  { name: "sahafsalih", lookup: lookupSahafsalih },
+  { name: "kitapvekahve", lookup: lookupKitapvekahve },
+];
+
+/** Birincil kaynak bulunamazsa veya eksik alan doldurmak için denenen kaynaklar. */
+const ENRICHMENT_PROVIDERS: Provider[] = [
   { name: "hardcover", lookup: lookupHardcover },
+  ...TURKISH_FALLBACK_PROVIDERS,
   { name: "google_books", lookup: lookupGoogleBooks },
   { name: "open_library", lookup: lookupOpenLibraryData },
   { name: "open_library", lookup: lookupOpenLibrarySearch },
   { name: "open_library", lookup: lookupOpenLibraryEdition },
 ];
+
+const ENRICHMENT_TIMEOUT_MS = 12_000;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number
+): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } catch {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function lookupWithVariants(
+  provider: Provider,
+  variants: string[],
+  timeoutMs?: number
+): Promise<LookupBook | null> {
+  for (const isbn of variants) {
+    try {
+      const lookup = provider.lookup(isbn);
+      const book = timeoutMs
+        ? await withTimeout(lookup, timeoutMs)
+        : await lookup;
+      if (book?.title) return book;
+    } catch {
+      // Sonraki varyant/sağlayıcıya geç.
+    }
+  }
+  return null;
+}
+
+/**
+ * Birincil sonuçtaki boş alanları sırayla diğer API'lerden tamamlar.
+ * Mevcut dolu alanlar asla üzerine yazılmaz.
+ */
+async function enrichFromOtherSources(
+  base: LookupBook,
+  variants: string[]
+): Promise<LookupBook> {
+  let merged = { ...base };
+  if (!bookNeedsEnrichment(merged)) return merged;
+
+  for (const provider of ENRICHMENT_PROVIDERS) {
+    if (!bookNeedsEnrichment(merged)) break;
+
+    const extra = await lookupWithVariants(
+      provider,
+      variants,
+      ENRICHMENT_TIMEOUT_MS
+    );
+    if (!extra?.title) continue;
+
+    merged = mergeLookupBooks(merged, extra);
+  }
+
+  return merged;
+}
 
 function ensureIsbn(book: LookupBook, searched: string): LookupBook {
   const result = { ...book };
@@ -395,26 +475,34 @@ function ensureIsbn(book: LookupBook, searched: string): LookupBook {
 
 /**
  * ISBN ile kitap bilgisi arar.
- * Sıra: Harikakitap → Hardcover → Google Books → Open Library.
- * Her sağlayıcıda ISBN-10/13 varyantları denenir.
+ *
+ * 1. Harikakitap'tan temel bilgiler alınır.
+ * 2. Eksik alanlar (sayfa sayısı vb.) varsa Hardcover → Google Books → Open Library
+ *    sırasıyla yalnızca boş alanlar doldurulur.
+ * 3. Harikakitap'ta bulunamazsa diğer kaynaklardan ilk tam sonuç döner.
  */
 export async function lookupBookByIsbn(rawIsbn: string): Promise<BookLookupResponse> {
   const variants = getIsbnVariants(rawIsbn);
 
-  for (const provider of PROVIDERS) {
-    for (const isbn of variants) {
-      try {
-        const book = await provider.lookup(isbn);
-        if (book?.title) {
-          return {
-            found: true,
-            source: provider.name,
-            book: ensureIsbn(book, rawIsbn),
-          };
-        }
-      } catch {
-        // Bir sonraki sağlayıcı/varyanta geç.
-      }
+  const primary = await lookupWithVariants(PRIMARY_PROVIDER, variants);
+  if (primary?.title) {
+    const enriched = await enrichFromOtherSources(primary, variants);
+    return {
+      found: true,
+      source: "harikakitap",
+      book: ensureIsbn(enriched, rawIsbn),
+    };
+  }
+
+  for (const provider of ENRICHMENT_PROVIDERS) {
+    const book = await lookupWithVariants(provider, variants);
+    if (book?.title) {
+      const enriched = await enrichFromOtherSources(book, variants);
+      return {
+        found: true,
+        source: provider.name,
+        book: ensureIsbn(enriched, rawIsbn),
+      };
     }
   }
 

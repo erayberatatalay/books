@@ -42,12 +42,15 @@ Uygulama ISBN ararken sırayla şu kaynakları dener:
 
 | Kaynak | Sıra | API anahtarı | Not |
 | --- | --- | --- | --- |
-| **Harikakitap.com** | 1 | Gerekmez | Türkçe yayınlar |
-| Hardcover.app | 2 | `HARDCOVER_API_TOKEN` | Topluluk kataloğu |
-| Google Books | 3 | `GOOGLE_BOOKS_API_KEY` | Uluslararası katalog |
-| Open Library | 4 | Gerekmez | Açık veri yedek kaynağı |
+| **Harikakitap.com** | 1 | Gerekmez | Türkçe yayınlar (birincil) |
+| Sahaf Salih / Kitap ve Kahve | yedek | Gerekmez | Harikakitap'ta yoksa; Dokuzsoft autocomplete API |
+| Hardcover.app | zenginleştirme | `HARDCOVER_API_TOKEN` | Topluluk kataloğu |
+| Google Books | zenginleştirme | `GOOGLE_BOOKS_API_KEY` | Uluslararası katalog |
+| Open Library | zenginleştirme | Gerekmez | Açık veri yedek kaynağı |
 
-> Kitapsec, 1000Kitap ve Sahaf Salih gibi siteler sunucu tarafında bot koruması veya istemci taraflı arama kullandığı için doğrudan entegre edilemedi. Harikakitap'ın `prsearch` uç noktası aynı ISBN'ler için güvenilir sonuç veriyor.
+> **Birleştirme:** Harikakitap'tan gelen bilgiler önceliklidir. Sayfa sayısı gibi eksik alanlar varsa sırayla Hardcover, Sahaf Salih, Kitap ve Kahve, Google Books ve Open Library denenir; yalnızca boş alanlar doldurulur, mevcut veri ezilmez.
+
+> Kitapsec ve 1000Kitap bot koruması nedeniyle entegre edilemedi. Sahaf Salih ve Kitap ve Kahve'nin HTML arama sayfası ISBN ile sonuç döndürmez; `/autocomplete` API'si stok kodunu bulur.
 
 ### 3. Veritabanı ve Storage
 

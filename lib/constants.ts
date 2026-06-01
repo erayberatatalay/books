@@ -33,6 +33,8 @@ export const COPY_STATUS_LABELS: Record<CopyStatus, string> = {
 
 export const LOOKUP_SOURCE_LABELS: Record<string, string> = {
   harikakitap: "Harikakitap",
+  sahafsalih: "Sahaf Salih",
+  kitapvekahve: "Kitap ve Kahve",
   hardcover: "Hardcover",
   google_books: "Google Books",
   open_library: "Open Library",

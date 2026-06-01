@@ -99,7 +99,9 @@ export type LookupSource =
   | "google_books"
   | "open_library"
   | "hardcover"
-  | "harikakitap";
+  | "harikakitap"
+  | "sahafsalih"
+  | "kitapvekahve";
 
 export type BookLookupResponse = {
   found: boolean;
