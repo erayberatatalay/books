@@ -26,7 +26,7 @@ export function ScanFlow() {
 
     try {
       const res = await fetch(
-        `/api/books/lookup?isbn=${encodeURIComponent(normalized)}`
+        `/api/books/lookup?isbn=${encodeURIComponent(normalized)}&fast=1`
       );
       const data = (await res.json()) as BookLookupResponse & { error?: string };
       if (!res.ok) {

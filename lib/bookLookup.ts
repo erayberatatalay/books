@@ -398,7 +398,13 @@ const ENRICHMENT_PROVIDERS: Provider[] = [
   { name: "open_library", lookup: lookupOpenLibraryEdition },
 ];
 
-const ENRICHMENT_TIMEOUT_MS = 12_000;
+const ENRICHMENT_TIMEOUT_MS = 5_000;
+const FALLBACK_LOOKUP_TIMEOUT_MS = 8_000;
+
+export type LookupOptions = {
+  /** Barkod taramada ilk bulunan sonuç hemen döner; zenginleştirme atlanır. */
+  fast?: boolean;
+};
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -444,22 +450,23 @@ async function lookupWithVariants(
  */
 async function enrichFromOtherSources(
   base: LookupBook,
-  variants: string[]
+  variants: string[],
+  skipSource?: LookupSource
 ): Promise<LookupBook> {
   let merged = { ...base };
   if (!bookNeedsEnrichment(merged)) return merged;
 
-  for (const provider of ENRICHMENT_PROVIDERS) {
-    if (!bookNeedsEnrichment(merged)) break;
+  const providers = ENRICHMENT_PROVIDERS.filter((p) => p.name !== skipSource);
+  const extras = await Promise.all(
+    providers.map((provider) =>
+      lookupWithVariants(provider, variants, ENRICHMENT_TIMEOUT_MS)
+    )
+  );
 
-    const extra = await lookupWithVariants(
-      provider,
-      variants,
-      ENRICHMENT_TIMEOUT_MS
-    );
+  for (const extra of extras) {
     if (!extra?.title) continue;
-
     merged = mergeLookupBooks(merged, extra);
+    if (!bookNeedsEnrichment(merged)) break;
   }
 
   return merged;
@@ -481,27 +488,43 @@ function ensureIsbn(book: LookupBook, searched: string): LookupBook {
  *    sırasıyla yalnızca boş alanlar doldurulur.
  * 3. Harikakitap'ta bulunamazsa diğer kaynaklardan ilk tam sonuç döner.
  */
-export async function lookupBookByIsbn(rawIsbn: string): Promise<BookLookupResponse> {
+export async function lookupBookByIsbn(
+  rawIsbn: string,
+  options?: LookupOptions
+): Promise<BookLookupResponse> {
+  const fast = options?.fast ?? false;
   const variants = getIsbnVariants(rawIsbn);
 
-  const primary = await lookupWithVariants(PRIMARY_PROVIDER, variants);
+  const primary = await lookupWithVariants(
+    PRIMARY_PROVIDER,
+    variants,
+    fast ? FALLBACK_LOOKUP_TIMEOUT_MS : undefined
+  );
   if (primary?.title) {
-    const enriched = await enrichFromOtherSources(primary, variants);
+    const book = fast
+      ? primary
+      : await enrichFromOtherSources(primary, variants, "harikakitap");
     return {
       found: true,
       source: "harikakitap",
-      book: ensureIsbn(enriched, rawIsbn),
+      book: ensureIsbn(book, rawIsbn),
     };
   }
 
   for (const provider of ENRICHMENT_PROVIDERS) {
-    const book = await lookupWithVariants(provider, variants);
+    const book = await lookupWithVariants(
+      provider,
+      variants,
+      FALLBACK_LOOKUP_TIMEOUT_MS
+    );
     if (book?.title) {
-      const enriched = await enrichFromOtherSources(book, variants);
+      const final = fast
+        ? book
+        : await enrichFromOtherSources(book, variants, provider.name);
       return {
         found: true,
         source: provider.name,
-        book: ensureIsbn(enriched, rawIsbn),
+        book: ensureIsbn(final, rawIsbn),
       };
     }
   }

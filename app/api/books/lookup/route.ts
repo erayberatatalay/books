@@ -18,9 +18,10 @@ export async function GET(request: Request) {
   }
 
   const isbn = normalizeIsbn(rawIsbn);
+  const fast = searchParams.get("fast") === "1";
 
   try {
-    const result = await lookupBookByIsbn(isbn);
+    const result = await lookupBookByIsbn(isbn, { fast });
 
     if (!result.found) {
       const missing: string[] = [];

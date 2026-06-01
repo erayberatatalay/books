@@ -62,6 +62,8 @@ export function BarcodeScanner({
   const streamRef = useRef<MediaStream | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const stopNativeRef = useRef<(() => void) | null>(null);
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
@@ -114,7 +116,7 @@ export function BarcodeScanner({
           try {
             const codes = await detector.detect(video);
             const match = codes.find((c) => c.rawValue?.trim());
-            if (match && onDetected(match.rawValue.trim())) {
+            if (match && onDetectedRef.current(match.rawValue.trim())) {
               stopAll();
               return;
             }
@@ -122,7 +124,7 @@ export function BarcodeScanner({
             // Kare okunamadı; bir sonraki denemeye geç.
           }
         }
-        await new Promise((r) => setTimeout(r, 120));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       }
     }
 
@@ -130,14 +132,14 @@ export function BarcodeScanner({
       video: HTMLVideoElement
     ): Promise<IScannerControls> {
       const reader = new BrowserMultiFormatReader(SCAN_HINTS, {
-        delayBetweenScanAttempts: 80,
-        delayBetweenScanSuccess: 800,
+        delayBetweenScanAttempts: 50,
+        delayBetweenScanSuccess: 400,
       });
 
       return reader.decodeFromVideoElement(video, (result) => {
         if (!result || cancelled) return;
         const text = result.getText()?.trim();
-        if (text && onDetected(text)) {
+        if (text && onDetectedRef.current(text)) {
           stopAll();
         }
       });
@@ -201,7 +203,7 @@ export function BarcodeScanner({
       cancelled = true;
       stopAll();
     };
-  }, [active, onDetected, stopAll]);
+  }, [active, stopAll]);
 
   return (
     <div className="space-y-3">
