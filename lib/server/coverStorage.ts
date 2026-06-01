@@ -1,4 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isBrokenCoverUrl,
+  isMissingOrBrokenCover,
+  normalizeExternalCoverUrl,
+  resolveCoverUrl,
+} from "@/lib/normalizeCoverUrl";
 
 const BUCKET = "book-covers";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -30,6 +36,9 @@ export async function persistBookCover(
     return isStoredCoverUrl(externalUrl) ? externalUrl : null;
   }
 
+  const normalizedUrl = normalizeExternalCoverUrl(externalUrl);
+  if (!normalizedUrl) return null;
+
   let admin;
   try {
     admin = createAdminClient();
@@ -38,7 +47,7 @@ export async function persistBookCover(
   }
 
   try {
-    const res = await fetch(externalUrl.replace(/^http:\/\//i, "https://"), {
+    const res = await fetch(normalizedUrl.replace(/^http:\/\//i, "https://"), {
       headers: {
         Accept: "image/*",
         "User-Agent": "EvKitapligim/1.0",
@@ -76,34 +85,83 @@ export async function persistBookCover(
 
 /**
  * Kitabın cover_url alanını storage URL ile günceller (varsa).
- * Harici URL kalırsa mevcut değeri korur.
+ * Bozuk URL'ler onarılır; geçerli storage kapak asla ezilmez.
  */
 export async function saveBookCoverIfNeeded(
   bookId: string,
   externalUrl: string | null | undefined,
   currentCoverUrl?: string | null
 ): Promise<string | null> {
-  if (!externalUrl?.trim()) {
-    return currentCoverUrl ?? null;
+  const resolvedCurrent = resolveCoverUrl(currentCoverUrl);
+  const resolvedIncoming = externalUrl?.trim()
+    ? resolveCoverUrl(externalUrl)
+    : null;
+
+  // Yeni URL yok ama mevcut bozuksa mevcut URL'yi onarmayı dene.
+  const sourceUrl =
+    resolvedIncoming ??
+    (isBrokenCoverUrl(currentCoverUrl) ? resolvedCurrent : null);
+
+  if (!sourceUrl) {
+    return resolvedCurrent;
   }
 
-  if (currentCoverUrl && isStoredCoverUrl(currentCoverUrl)) {
+  if (
+    currentCoverUrl &&
+    isStoredCoverUrl(currentCoverUrl) &&
+    !isBrokenCoverUrl(currentCoverUrl)
+  ) {
     return currentCoverUrl;
   }
 
-  const stored = await persistBookCover(externalUrl, bookId);
-  if (!stored) {
-    return externalUrl;
+  const stored = await persistBookCover(sourceUrl, bookId);
+  const finalUrl = stored ?? sourceUrl;
+
+  if (finalUrl !== currentCoverUrl) {
+    try {
+      const admin = createAdminClient();
+      await admin.from("books").update({ cover_url: finalUrl }).eq("id", bookId);
+    } catch {
+      return finalUrl;
+    }
   }
 
-  try {
-    const admin = createAdminClient();
-    await admin.from("books").update({ cover_url: stored }).eq("id", bookId);
-  } catch {
-    return stored;
+  return finalUrl;
+}
+
+/** Mevcut kapak bozuksa veya eksikse onarır; patch'e yazılacak URL'yi döner. */
+export async function repairCoverIfNeeded(
+  bookId: string,
+  existingCover: string | null | undefined,
+  incomingCover?: string | null
+): Promise<{ coverUrl: string | null; changed: boolean }> {
+  const incomingResolved = incomingCover?.trim()
+    ? resolveCoverUrl(incomingCover)
+    : null;
+
+  const shouldUpdate =
+    incomingResolved != null
+      ? isMissingOrBrokenCover(existingCover) ||
+        isBrokenCoverUrl(existingCover)
+      : isBrokenCoverUrl(existingCover);
+
+  if (!shouldUpdate && !isBrokenCoverUrl(existingCover)) {
+    return { coverUrl: existingCover ?? null, changed: false };
   }
 
-  return stored;
+  const source =
+    incomingResolved ??
+    (isBrokenCoverUrl(existingCover) ? resolveCoverUrl(existingCover) : null);
+
+  if (!source) {
+    return { coverUrl: existingCover ?? null, changed: false };
+  }
+
+  const updated = await saveBookCoverIfNeeded(bookId, source, existingCover);
+  return {
+    coverUrl: updated,
+    changed: updated != null && updated !== (existingCover ?? null),
+  };
 }
 
 /** Kitaba ait storage kapak dosyalarını siler (varsa). */

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Book, ReadingStatus } from "@/lib/types";
 import { READING_STATUS_COLORS, READING_STATUS_LABELS } from "@/lib/constants";
+import { normalizeExternalCoverUrl } from "@/lib/normalizeCoverUrl";
 import { BookHolderBadge } from "./BookHolderBadge";
 
 export type BookCardData = {
@@ -19,7 +20,7 @@ export function BookCard({ book, readingStatus, holderName }: BookCardData) {
         {book.cover_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={book.cover_url}
+            src={normalizeExternalCoverUrl(book.cover_url) ?? book.cover_url}
             alt={book.title}
             className="h-full w-full object-cover"
             loading="lazy"

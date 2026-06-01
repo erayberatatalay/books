@@ -1,4 +1,5 @@
 import { fetchHtml, fetchJsonBody } from "@/lib/fetchHtml";
+import { normalizeExternalCoverUrl } from "@/lib/normalizeCoverUrl";
 import type { LookupBook } from "@/lib/types";
 
 type AutocompleteItem = {
@@ -32,15 +33,6 @@ function parseFeatureFields(html: string): Record<string, string> {
   return fields;
 }
 
-function normalizeCoverUrl(url?: string): string | undefined {
-  if (!url) return undefined;
-  // Sahaf Salih bazen og:image içinde site URL'sini iki kez birleştirir.
-  const broken = url.match(/^https:\/\/www\.sahafsalih\.com(https:\/\/cdn\d+\.dokuzsoft\.com\/[^"]+)/);
-  if (broken) return broken[1];
-  if (url.startsWith("//")) return `https:${url}`;
-  return url;
-}
-
 function parsePublishedYear(value?: string): string | undefined {
   if (!value) return undefined;
   const match = value.match(/\d{4}/);
@@ -69,11 +61,11 @@ function parseDokuzsoftDetail(html: string, isbn: string): LookupBook | null {
   }
 
   const coverUrl =
-    normalizeCoverUrl(
+    normalizeExternalCoverUrl(
       html.match(/property="og:image"\s+content="([^"]+)"/)?.[1] ??
         html.match(/content="([^"]+)"\s+property="og:image"/)?.[1]
     ) ??
-    normalizeCoverUrl(
+    normalizeExternalCoverUrl(
       html.match(/class="[^"]*product[^"]*image[^"]*"[\s\S]*?<img[^>]+src="([^"]+)"/i)?.[1]
     );
 
@@ -124,7 +116,7 @@ export function createDokuzsoftLookup(baseUrl: string) {
     if (!book?.title) return null;
 
     if (!book.cover_url && product.image) {
-      book.cover_url = normalizeCoverUrl(product.image);
+      book.cover_url = normalizeExternalCoverUrl(product.image);
     }
 
     return book;

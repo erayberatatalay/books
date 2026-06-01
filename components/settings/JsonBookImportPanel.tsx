@@ -54,7 +54,10 @@ export function JsonBookImportPanel() {
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4">
+    <section
+      id="json-import"
+      className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 scroll-mt-20"
+    >
       <div>
         <h2 className="text-sm font-semibold text-gray-900">
           JSON ile Toplu Kitap Ekle

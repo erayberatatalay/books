@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LookupBook } from "@/lib/types";
+import { resolveCoverUrl } from "@/lib/normalizeCoverUrl";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 
 type FormState = {
@@ -30,7 +31,7 @@ function toFormState(initial?: Partial<LookupBook>): FormState {
     published_year: initial?.published_year ?? "",
     page_count: initial?.page_count ? String(initial.page_count) : "",
     category: initial?.category ?? "",
-    cover_url: initial?.cover_url ?? "",
+    cover_url: resolveCoverUrl(initial?.cover_url) ?? "",
     description: initial?.description ?? "",
   };
 }
@@ -83,7 +84,7 @@ export function BookForm({
       published_year: form.published_year || undefined,
       page_count: form.page_count ? Number(form.page_count) : undefined,
       category: form.category || undefined,
-      cover_url: form.cover_url || undefined,
+      cover_url: resolveCoverUrl(form.cover_url) ?? undefined,
       description: form.description || undefined,
     };
 

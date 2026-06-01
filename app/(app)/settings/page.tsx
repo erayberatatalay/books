@@ -31,7 +31,14 @@ export default async function SettingsPage() {
         </div>
       </section>
 
-      {isAdmin && <JsonBookImportPanel />}
+      {isAdmin ? (
+        <JsonBookImportPanel />
+      ) : (
+        <p className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+          JSON ile toplu kitap ekleme yalnızca yönetici hesaplarında görünür.
+          Rolünüz: Üye
+        </p>
+      )}
 
       <LogoutButton />
     </div>

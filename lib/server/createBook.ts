@@ -1,7 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeIsbn } from "@/lib/isbn";
 import { mergeLookupBooks } from "@/lib/mergeLookupBook";
-import { saveBookCoverIfNeeded } from "@/lib/server/coverStorage";
+import { resolveCoverUrl } from "@/lib/normalizeCoverUrl";
+import {
+  repairCoverIfNeeded,
+  saveBookCoverIfNeeded,
+} from "@/lib/server/coverStorage";
 import type { LookupBook } from "@/lib/types";
 
 export type CreateBookInput = LookupBook & { source?: string };
@@ -162,15 +166,14 @@ export async function importBookRecord(
     const patch = buildEnrichmentPatch(existing, body);
     let coverUrl = existing.cover_url;
 
-    if (!existing.cover_url && body.cover_url) {
-      coverUrl = await saveBookCoverIfNeeded(
-        existing.id,
-        body.cover_url,
-        existing.cover_url
-      );
-      if (coverUrl && coverUrl !== existing.cover_url) {
-        patch.cover_url = coverUrl;
-      }
+    const coverRepair = await repairCoverIfNeeded(
+      existing.id,
+      existing.cover_url,
+      body.cover_url
+    );
+    if (coverRepair.changed && coverRepair.coverUrl) {
+      patch.cover_url = coverRepair.coverUrl;
+      coverUrl = coverRepair.coverUrl;
     }
 
     const hasFieldUpdates = Object.keys(patch).length > 0;
@@ -208,7 +211,7 @@ export async function importBookRecord(
       published_year: body.published_year ?? null,
       page_count: body.page_count ?? null,
       description: body.description ?? null,
-      cover_url: body.cover_url ?? null,
+      cover_url: body.cover_url ? resolveCoverUrl(body.cover_url) : null,
       category: body.category ?? null,
       source: body.source ?? null,
       created_by: userId,
@@ -271,15 +274,14 @@ export async function createBookRecord(
     const patch = buildEnrichmentPatch(existing, body);
     coverUrl = existing.cover_url;
 
-    if (!existing.cover_url && body.cover_url) {
-      coverUrl = await saveBookCoverIfNeeded(
-        existing.id,
-        body.cover_url,
-        existing.cover_url
-      );
-      if (coverUrl && coverUrl !== existing.cover_url) {
-        patch.cover_url = coverUrl;
-      }
+    const coverRepair = await repairCoverIfNeeded(
+      existing.id,
+      existing.cover_url,
+      body.cover_url
+    );
+    if (coverRepair.changed && coverRepair.coverUrl) {
+      patch.cover_url = coverRepair.coverUrl;
+      coverUrl = coverRepair.coverUrl;
     }
 
     if (Object.keys(patch).length > 0) {
@@ -312,7 +314,7 @@ export async function createBookRecord(
         published_year: body.published_year ?? null,
         page_count: body.page_count ?? null,
         description: body.description ?? null,
-        cover_url: body.cover_url ?? null,
+        cover_url: body.cover_url ? resolveCoverUrl(body.cover_url) : null,
         category: body.category ?? null,
         source: body.source ?? null,
         created_by: userId,

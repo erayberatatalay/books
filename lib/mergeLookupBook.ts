@@ -1,4 +1,5 @@
 import type { LookupBook } from "./types";
+import { isMissingOrBrokenCover, resolveCoverUrl } from "./normalizeCoverUrl";
 
 function isEmpty(value?: string | null): boolean {
   return value == null || value.trim() === "";
@@ -34,7 +35,7 @@ export function bookNeedsEnrichment(book: LookupBook): boolean {
     isEmpty(book.published_year) ||
     isWeakDescription(book) ||
     isEmpty(book.category) ||
-    isEmpty(book.cover_url)
+    isMissingOrBrokenCover(book.cover_url)
   );
 }
 
@@ -59,7 +60,9 @@ export function mergeLookupBooks(
       ? extra.page_count
       : base.page_count,
     description: isWeakDescription(base) ? extra.description : base.description,
-    cover_url: isEmpty(base.cover_url) ? extra.cover_url : base.cover_url,
+    cover_url: isMissingOrBrokenCover(base.cover_url)
+      ? resolveCoverUrl(extra.cover_url) ?? extra.cover_url
+      : resolveCoverUrl(base.cover_url) ?? base.cover_url,
     category: isEmpty(base.category) ? extra.category : base.category,
   };
 }

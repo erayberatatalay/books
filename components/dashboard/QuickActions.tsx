@@ -8,10 +8,16 @@ const ACTIONS = [
   { href: "/active-holders", label: "Kimde Olan Kitaplar", emoji: "👤" },
 ];
 
-export function QuickActions() {
+const ADMIN_ACTIONS = [
+  { href: "/settings#json-import", label: "JSON İçe Aktar", emoji: "📋" },
+];
+
+export function QuickActions({ isAdmin = false }: { isAdmin?: boolean }) {
+  const items = isAdmin ? [...ACTIONS, ...ADMIN_ACTIONS] : ACTIONS;
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {ACTIONS.map((a) => (
+      {items.map((a) => (
         <Link
           key={a.href}
           href={a.href}

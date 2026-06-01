@@ -62,7 +62,7 @@ export default async function DashboardPage() {
         <h2 className="mb-2 text-sm font-semibold text-gray-700">
           Hızlı İşlemler
         </h2>
-        <QuickActions />
+        <QuickActions isAdmin={user.profile.role === "admin"} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LookupBook, LookupSource } from "@/lib/types";
+import { normalizeExternalCoverUrl } from "@/lib/normalizeCoverUrl";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { BookForm } from "./BookForm";
 
@@ -120,7 +121,7 @@ export function BookLookupPreview({
           {book.cover_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={book.cover_url}
+              src={normalizeExternalCoverUrl(book.cover_url) ?? book.cover_url}
               alt={book.title}
               className="h-full w-full object-cover"
             />

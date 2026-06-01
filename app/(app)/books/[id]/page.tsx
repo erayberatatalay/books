@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/requireUser";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileMap, resolveHolderName } from "@/lib/server/books";
+import { normalizeExternalCoverUrl } from "@/lib/normalizeCoverUrl";
 import type {
   Book,
   BookCopy,
@@ -69,7 +70,10 @@ export default async function BookDetailPage({
           {typedBook.cover_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={typedBook.cover_url}
+              src={
+                normalizeExternalCoverUrl(typedBook.cover_url) ??
+                typedBook.cover_url
+              }
               alt={typedBook.title}
               className="h-44 w-28 object-cover"
             />

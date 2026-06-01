@@ -6,6 +6,7 @@ import {
   removeBookCoverFiles,
   saveBookCoverIfNeeded,
 } from "@/lib/server/coverStorage";
+import { isBrokenCoverUrl, resolveCoverUrl } from "@/lib/normalizeCoverUrl";
 import type { LookupBook } from "@/lib/types";
 
 type PatchBody = Partial<LookupBook> & { is_archived?: boolean };
@@ -96,13 +97,22 @@ export async function PATCH(
     .eq("id", params.id)
     .maybeSingle();
 
-  let coverUrl = body.cover_url ?? current?.cover_url ?? null;
-  if (body.cover_url?.trim()) {
-    coverUrl = await saveBookCoverIfNeeded(
-      params.id,
-      body.cover_url,
-      current?.cover_url
-    );
+  const currentCover = current?.cover_url ?? null;
+  const incomingCover = body.cover_url?.trim() || undefined;
+  const needsCoverUpdate =
+    Boolean(incomingCover) || isBrokenCoverUrl(currentCover);
+
+  let coverUrl = resolveCoverUrl(currentCover) ?? currentCover;
+
+  if (needsCoverUpdate) {
+    coverUrl =
+      (await saveBookCoverIfNeeded(
+        params.id,
+        incomingCover ?? currentCover ?? undefined,
+        currentCover
+      )) ??
+      resolveCoverUrl(incomingCover ?? currentCover) ??
+      coverUrl;
   }
 
   const { error } = await supabase
