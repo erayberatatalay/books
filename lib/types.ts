@@ -95,10 +95,14 @@ export type LookupBook = {
   category?: string;
 };
 
+export type LookupSource = "google_books" | "open_library" | "hardcover";
+
 export type BookLookupResponse = {
   found: boolean;
-  source?: "google_books" | "open_library";
+  source?: LookupSource;
   book?: LookupBook;
+  /** Kitap bulunamadığında yapılandırma ipucu (ör. eksik API anahtarı). */
+  hint?: string;
 };
 
 export type BookWithRelations = Book & {

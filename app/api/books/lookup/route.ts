@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { lookupBookByIsbn } from "@/lib/bookLookup";
-import { isValidIsbn } from "@/lib/isbn";
+import { lookupBookByIsbn, hasGoogleBooksApiKey, hasHardcoverToken } from "@/lib/bookLookup";
+import { normalizeIsbn, validateIsbnMessage } from "@/lib/isbn";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
 export async function GET(request: Request) {
@@ -10,17 +10,32 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const isbn = searchParams.get("isbn") ?? "";
+  const rawIsbn = searchParams.get("isbn") ?? "";
 
-  if (!isValidIsbn(isbn)) {
-    return NextResponse.json(
-      { error: "Geçerli bir ISBN giriniz (10 veya 13 haneli)." },
-      { status: 400 }
-    );
+  const validationError = validateIsbnMessage(rawIsbn);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
+
+  const isbn = normalizeIsbn(rawIsbn);
 
   try {
     const result = await lookupBookByIsbn(isbn);
+
+    if (!result.found) {
+      const missing: string[] = [];
+      if (!hasGoogleBooksApiKey()) missing.push("GOOGLE_BOOKS_API_KEY");
+      if (!hasHardcoverToken()) missing.push("HARDCOVER_API_TOKEN");
+
+      if (missing.length > 0) {
+        const hint =
+          missing.length === 2
+            ? "Daha geniş kapsam için .env dosyanıza GOOGLE_BOOKS_API_KEY ve/veya HARDCOVER_API_TOKEN ekleyebilirsiniz."
+            : `Daha geniş kapsam için .env dosyanıza ${missing[0]} ekleyebilirsiniz.`;
+        return NextResponse.json({ ...result, hint });
+      }
+    }
+
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(

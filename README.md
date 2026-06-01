@@ -33,7 +33,7 @@ cp .env.local.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase proje URL'i |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key — **sadece server tarafında** kullanılır, client'a gönderilmez |
-| `GOOGLE_BOOKS_API_KEY` | Opsiyonel. Boş bırakılırsa public Google Books endpoint denenir |
+| `GOOGLE_BOOKS_API_KEY` | **Önerilir (neredeyse zorunlu).** Anahtarsız Google Books paylaşılan kotayı kullanır ve çoğu istekte 429 hatası alınır. [Google Cloud Console](https://console.cloud.google.com/) üzerinden ücretsiz API anahtarı oluşturun. |
 
 ### 3. Veritabanı
 

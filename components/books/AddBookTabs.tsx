@@ -100,6 +100,9 @@ export function AddBookTabs() {
                 Bu ISBN için kitap bilgisi bulunamadı. Bilgileri elle
                 girebilirsin.
               </p>
+              {result.hint && (
+                <p className="text-xs text-amber-700">{result.hint}</p>
+              )}
               <button
                 onClick={() => setTab("manual")}
                 className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"

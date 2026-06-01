@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { LookupBook } from "@/lib/types";
+import type { LookupBook, LookupSource } from "@/lib/types";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { BookForm } from "./BookForm";
 
@@ -11,7 +11,7 @@ export function BookLookupPreview({
   source,
 }: {
   book: LookupBook;
-  source: "google_books" | "open_library";
+  source: LookupSource;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);

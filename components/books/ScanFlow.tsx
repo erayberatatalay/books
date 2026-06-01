@@ -30,9 +30,14 @@ export function ScanFlow() {
 
     try {
       const res = await fetch(`/api/books/lookup?isbn=${normalized}`);
-      const data = (await res.json()) as BookLookupResponse;
+      const data = (await res.json()) as BookLookupResponse & { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Arama sırasında bir hata oluştu.");
+        setPhase("scanning");
+        return;
+      }
+      setResult(data);
       if (data.found) {
-        setResult(data);
         setPhase("found");
       } else {
         setPhase("notfound");
@@ -81,6 +86,9 @@ export function ScanFlow() {
             {isbn ? `${isbn} için ` : ""}kitap bilgisi bulunamadı. Bilgileri elle
             girebilirsin.
           </p>
+          {result?.hint && (
+            <p className="text-xs text-amber-700">{result.hint}</p>
+          )}
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
               href={`/books/add`}
