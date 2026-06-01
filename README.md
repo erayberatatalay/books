@@ -10,7 +10,7 @@ Ev içi kullanım için tasarlanmış, Türkçe, mobil öncelikli bir fiziksel k
 - **Tailwind CSS**
 - **Supabase** (Auth + Postgres + RLS)
 - **@zxing/browser** — telefon kamerasıyla barkod/ISBN okuma
-- **Google Books API** (birincil) + **Open Library API** (yedek) — ISBN ile kitap bilgisi
+- **Harikakitap.com** (birincil) + **Hardcover.app** + **Google Books API** + **Open Library** (yedek) — ISBN ile kitap bilgisi
 
 ## Kurulum
 
@@ -33,17 +33,35 @@ cp .env.local.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase proje URL'i |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key — **sadece server tarafında** kullanılır, client'a gönderilmez |
-| `GOOGLE_BOOKS_API_KEY` | **Önerilir (neredeyse zorunlu).** Anahtarsız Google Books paylaşılan kotayı kullanır ve çoğu istekte 429 hatası alınır. [Google Cloud Console](https://console.cloud.google.com/) üzerinden ücretsiz API anahtarı oluşturun. |
+| `HARDCOVER_API_TOKEN` | **Önerilir (2. kaynak).** [hardcover.app/account/api](https://hardcover.app/account/api) adresinden ücretsiz alınır. |
+| `GOOGLE_BOOKS_API_KEY` | **Önerilir (3. kaynak).** [Google Cloud Console](https://console.cloud.google.com/) üzerinden Books API anahtarı oluşturun. |
 
-### 3. Veritabanı
+### ISBN arama kaynakları
 
-Supabase projenizde SQL Editor üzerinden migration dosyasını çalıştırın:
+Uygulama ISBN ararken sırayla şu kaynakları dener:
+
+| Kaynak | Sıra | API anahtarı | Not |
+| --- | --- | --- | --- |
+| **Harikakitap.com** | 1 | Gerekmez | Türkçe yayınlar |
+| Hardcover.app | 2 | `HARDCOVER_API_TOKEN` | Topluluk kataloğu |
+| Google Books | 3 | `GOOGLE_BOOKS_API_KEY` | Uluslararası katalog |
+| Open Library | 4 | Gerekmez | Açık veri yedek kaynağı |
+
+> Kitapsec, 1000Kitap ve Sahaf Salih gibi siteler sunucu tarafında bot koruması veya istemci taraflı arama kullandığı için doğrudan entegre edilemedi. Harikakitap'ın `prsearch` uç noktası aynı ISBN'ler için güvenilir sonuç veriyor.
+
+### 3. Veritabanı ve Storage
+
+Supabase projenizde SQL Editor üzerinden migration dosyalarını sırayla çalıştırın:
 
 ```
 supabase/migrations/001_initial_schema.sql
+supabase/migrations/002_book_covers_storage.sql
 ```
 
-Bu dosya tabloları, indeksleri, `updated_at` trigger'larını, yeni kullanıcı için otomatik profil oluşturmayı ve tüm RLS politikalarını kurar.
+- `001` — tablolar, RLS, profil trigger'ları
+- `002` — kitap kapak görselleri için `book-covers` Storage bucket'ı (public okuma)
+
+Kitap eklenirken harici kapak URL'si varsa sunucu görseli indirip Supabase Storage'a yükler; `books.cover_url` alanı bu kalıcı adrese güncellenir.
 
 ### 4. İlk admin kullanıcısı
 

@@ -24,14 +24,14 @@ export async function GET(request: Request) {
 
     if (!result.found) {
       const missing: string[] = [];
-      if (!hasGoogleBooksApiKey()) missing.push("GOOGLE_BOOKS_API_KEY");
       if (!hasHardcoverToken()) missing.push("HARDCOVER_API_TOKEN");
+      if (!hasGoogleBooksApiKey()) missing.push("GOOGLE_BOOKS_API_KEY");
 
       if (missing.length > 0) {
         const hint =
           missing.length === 2
-            ? "Daha geniş kapsam için .env dosyanıza GOOGLE_BOOKS_API_KEY ve/veya HARDCOVER_API_TOKEN ekleyebilirsiniz."
-            : `Daha geniş kapsam için .env dosyanıza ${missing[0]} ekleyebilirsiniz.`;
+            ? "Arama sırası: Harikakitap → Hardcover → Google Books. Daha geniş kapsam için .env dosyanıza HARDCOVER_API_TOKEN ve/veya GOOGLE_BOOKS_API_KEY ekleyebilirsiniz."
+            : `Arama sırası: Harikakitap → Hardcover → Google Books. Daha geniş kapsam için .env dosyanıza ${missing[0]} ekleyebilirsiniz.`;
         return NextResponse.json({ ...result, hint });
       }
     }

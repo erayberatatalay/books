@@ -1,6 +1,7 @@
 import { fetchJson } from "./fetchJson";
 import { getIsbnVariants } from "./isbnConvert";
 import { normalizeIsbn } from "./isbn";
+import { lookupHarikakitap } from "./providers/harikakitap";
 import type { BookLookupResponse, LookupBook, LookupSource } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -229,11 +230,11 @@ function mapGoogleVolume(info: NonNullable<GoogleVolume["volumeInfo"]>): LookupB
 
 async function lookupGoogleBooks(isbn: string): Promise<LookupBook | null> {
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
+  if (!apiKey) return null;
+
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
   url.searchParams.set("q", `isbn:${isbn}`);
-  if (apiKey) {
-    url.searchParams.set("key", apiKey);
-  }
+  url.searchParams.set("key", apiKey);
 
   const result = await fetchJson<GoogleResponse>(url.toString());
   if (!result.ok) {
@@ -370,15 +371,15 @@ type Provider = {
 
 /**
  * Arama sırası:
- * 1. Google Books (API key varsa güvenilir, yoksa hızla kota doluyor)
- * 2. Hardcover.app (ücretsiz hesap tokeni ile — Türkçe kitap kapsamı iyi)
- * 3. Open Library — bibkeys API
- * 4. Open Library — search.json
- * 5. Open Library — isbn/{isbn}.json + yazar/work detayı
+ * 1. Harikakitap.com (Türkçe yayınlar — API anahtarı gerekmez)
+ * 2. Hardcover.app (HARDCOVER_API_TOKEN)
+ * 3. Google Books (GOOGLE_BOOKS_API_KEY)
+ * 4. Open Library — bibkeys, search.json, isbn/{isbn}.json
  */
 const PROVIDERS: Provider[] = [
-  { name: "google_books", lookup: lookupGoogleBooks },
+  { name: "harikakitap", lookup: lookupHarikakitap },
   { name: "hardcover", lookup: lookupHardcover },
+  { name: "google_books", lookup: lookupGoogleBooks },
   { name: "open_library", lookup: lookupOpenLibraryData },
   { name: "open_library", lookup: lookupOpenLibrarySearch },
   { name: "open_library", lookup: lookupOpenLibraryEdition },
@@ -394,7 +395,7 @@ function ensureIsbn(book: LookupBook, searched: string): LookupBook {
 
 /**
  * ISBN ile kitap bilgisi arar.
- * Sıra: Google Books → Open Library (data, search, edition).
+ * Sıra: Harikakitap → Hardcover → Google Books → Open Library.
  * Her sağlayıcıda ISBN-10/13 varyantları denenir.
  */
 export async function lookupBookByIsbn(rawIsbn: string): Promise<BookLookupResponse> {

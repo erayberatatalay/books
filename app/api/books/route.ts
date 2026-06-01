@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { normalizeIsbn } from "@/lib/isbn";
+import { saveBookCoverIfNeeded } from "@/lib/server/coverStorage";
 import type { LookupBook } from "@/lib/types";
 
 type CreateBookBody = LookupBook & { source?: string };
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
   const isbn10 = body.isbn_10 ? normalizeIsbn(body.isbn_10) : null;
 
   // 1) Aynı ISBN'e sahip kitap var mı?
-  let existingBookId: string | null = null;
+  let existingBook: { id: string; cover_url: string | null } | null = null;
   if (isbn13 || isbn10) {
     const orFilters: string[] = [];
     if (isbn13) orFilters.push(`isbn_13.eq.${isbn13}`);
@@ -40,24 +41,25 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from("books")
-      .select("id")
+      .select("id, cover_url")
       .or(orFilters.join(","))
       .limit(1)
       .maybeSingle();
 
     if (existing) {
-      existingBookId = existing.id as string;
+      existingBook = existing as { id: string; cover_url: string | null };
     }
   }
 
-  let bookId = existingBookId;
+  let bookId = existingBook?.id ?? null;
   let duplicate = false;
+  let coverUrl: string | null = body.cover_url ?? null;
 
-  if (existingBookId) {
+  if (existingBook) {
     // 2-3) Aynı kitap varsa yeni kitap oluşturma, sadece yeni kopya ekle.
     duplicate = true;
     const { error: copyError } = await supabase.from("book_copies").insert({
-      book_id: existingBookId,
+      book_id: existingBook.id,
       status: "on_shelf",
     });
     if (copyError) {
@@ -65,6 +67,17 @@ export async function POST(request: Request) {
         { error: "Kitap kopyası eklenirken bir hata oluştu." },
         { status: 500 }
       );
+    }
+
+    // Mevcut kitapta kapak yoksa ve yeni kaynakta varsa storage'a al.
+    if (!existingBook.cover_url && body.cover_url) {
+      coverUrl = await saveBookCoverIfNeeded(
+        existingBook.id,
+        body.cover_url,
+        existingBook.cover_url
+      );
+    } else {
+      coverUrl = existingBook.cover_url;
     }
   } else {
     // 4) Kitap yoksa önce books, sonra book_copies.
@@ -107,6 +120,11 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Kapak varsa Supabase Storage'a indir ve cover_url'i güncelle.
+    if (body.cover_url) {
+      coverUrl = await saveBookCoverIfNeeded(bookId, body.cover_url, null);
+    }
   }
 
   // 5) Ekleyen kullanıcı için varsayılan okuma durumu (not_read).
@@ -119,5 +137,5 @@ export async function POST(request: Request) {
       );
   }
 
-  return NextResponse.json({ book_id: bookId, duplicate });
+  return NextResponse.json({ book_id: bookId, duplicate, cover_url: coverUrl });
 }

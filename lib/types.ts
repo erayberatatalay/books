@@ -95,7 +95,11 @@ export type LookupBook = {
   category?: string;
 };
 
-export type LookupSource = "google_books" | "open_library" | "hardcover";
+export type LookupSource =
+  | "google_books"
+  | "open_library"
+  | "hardcover"
+  | "harikakitap";
 
 export type BookLookupResponse = {
   found: boolean;
