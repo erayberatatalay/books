@@ -120,13 +120,11 @@ export function ScanFlow() {
 
       {phase === "found" && result?.book && result.source && (
         <div className="space-y-3">
-          <BookLookupPreview book={result.book} source={result.source} />
-          <button
-            onClick={rescan}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Yeniden Tara
-          </button>
+          <BookLookupPreview
+            book={result.book}
+            source={result.source}
+            onContinueScan={rescan}
+          />
         </div>
       )}
 

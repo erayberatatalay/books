@@ -1,22 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LookupBook, LookupSource } from "@/lib/types";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { BookForm } from "./BookForm";
 
+type SavedState = {
+  bookId: string;
+  duplicate?: boolean;
+  title: string;
+};
+
 export function BookLookupPreview({
   book,
   source,
+  onContinueScan,
 }: {
   book: LookupBook;
   source: LookupSource;
+  /** Kayıttan sonra barkod ekranına dönmek için */
+  onContinueScan?: () => void;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedState | null>(null);
 
   async function save() {
     setSaving(true);
@@ -32,6 +43,14 @@ export function BookLookupPreview({
         setError(data.error ?? "Kitap eklenemedi.");
         return;
       }
+      if (data.book_id && onContinueScan) {
+        setSaved({
+          bookId: data.book_id,
+          duplicate: data.duplicate,
+          title: book.title,
+        });
+        return;
+      }
       if (data.book_id) {
         router.push(`/books/${data.book_id}`);
       } else {
@@ -45,13 +64,51 @@ export function BookLookupPreview({
     }
   }
 
+  if (saved && onContinueScan) {
+    return (
+      <div className="space-y-4 rounded-xl border border-green-200 bg-green-50 p-4">
+        <div className="space-y-1">
+          <p className="font-semibold text-green-900">
+            {saved.duplicate ? "Kopya eklendi" : "Kitap kaydedildi"}
+          </p>
+          <p className="text-sm text-green-800">{saved.title}</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onContinueScan}
+            className="w-full rounded-lg bg-brand-500 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            Seriye Devam Et — Yeni Barkod Tara
+          </button>
+          <Link
+            href={`/books/${saved.bookId}`}
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Kitaba Git
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (editing) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-gray-500">
           Bilgileri kontrol edip kaydedebilirsin.
         </p>
-        <BookForm initial={book} source={source} />
+        <BookForm
+          initial={book}
+          source={source}
+          onSuccess={
+            onContinueScan
+              ? ({ bookId, duplicate }) =>
+                  setSaved({ bookId, duplicate, title: book.title })
+              : undefined
+          }
+          onCancel={() => setEditing(false)}
+        />
       </div>
     );
   }

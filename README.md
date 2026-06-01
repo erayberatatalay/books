@@ -56,10 +56,12 @@ Supabase projenizde SQL Editor üzerinden migration dosyalarını sırayla çal�
 ```
 supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_book_covers_storage.sql
+supabase/migrations/003_books_edit_delete_policies.sql
 ```
 
 - `001` — tablolar, RLS, profil trigger'ları
 - `002` — kitap kapak görselleri için `book-covers` Storage bucket'ı (public okuma)
+- `003` — kitap düzenleme (admin veya ekleyen) ve silme (admin) RLS politikaları
 
 Kitap eklenirken harici kapak URL'si varsa sunucu görseli indirip Supabase Storage'a yükler; `books.cover_url` alanı bu kalıcı adrese güncellenir.
 

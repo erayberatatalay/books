@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { BookLookupResponse } from "@/lib/types";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -11,6 +12,7 @@ import { BookLookupPreview } from "./BookLookupPreview";
 type Tab = "isbn" | "manual";
 
 export function AddBookTabs() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("isbn");
   const [isbn, setIsbn] = useState("");
   const [loading, setLoading] = useState(false);
@@ -91,7 +93,11 @@ export function AddBookTabs() {
           {loading && <LoadingState message="Kitap aranıyor..." />}
 
           {result && result.found && result.book && result.source && (
-            <BookLookupPreview book={result.book} source={result.source} />
+            <BookLookupPreview
+              book={result.book}
+              source={result.source}
+              onContinueScan={() => router.push("/books/scan")}
+            />
           )}
 
           {result && !result.found && (

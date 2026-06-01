@@ -12,18 +12,9 @@ import { ReadingStatusSelect } from "@/components/books/ReadingStatusSelect";
 import { BookNotes } from "@/components/books/BookNotes";
 import { BookActions } from "@/components/books/BookActions";
 import { BookHolderBadge } from "@/components/books/BookHolderBadge";
+import { BookInfoPanel } from "@/components/books/BookInfoPanel";
 
 export const dynamic = "force-dynamic";
-
-function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
-  if (value === null || value === undefined || value === "") return null;
-  return (
-    <div className="flex justify-between gap-4 border-b border-gray-100 py-2 text-sm last:border-0">
-      <span className="text-gray-500">{label}</span>
-      <span className="text-right font-medium text-gray-800">{value}</span>
-    </div>
-  );
-}
 
 export default async function BookDetailPage({
   params,
@@ -68,6 +59,8 @@ export default async function BookDetailPage({
   const isWithMember = copies.some((c) => c.status === "with_member");
   const heldByMe = copies.some((c) => c.current_holder_id === user.id);
   const isAdmin = user.profile.role === "admin";
+  const canEdit = isAdmin || typedBook.created_by === user.id;
+  const canDelete = isAdmin;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -124,26 +117,12 @@ export default async function BookDetailPage({
         />
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">
-          Kitap Bilgileri
-        </h2>
-        <DetailRow label="Yazar" value={typedBook.author} />
-        <DetailRow label="ISBN-13" value={typedBook.isbn_13} />
-        <DetailRow label="ISBN-10" value={typedBook.isbn_10} />
-        <DetailRow label="Yayınevi" value={typedBook.publisher} />
-        <DetailRow label="Yayın Yılı" value={typedBook.published_year} />
-        <DetailRow label="Sayfa Sayısı" value={typedBook.page_count} />
-        <DetailRow label="Kategori" value={typedBook.category} />
-        {typedBook.description && (
-          <div className="pt-3">
-            <p className="mb-1 text-sm text-gray-500">Açıklama</p>
-            <p className="whitespace-pre-wrap text-sm text-gray-800">
-              {typedBook.description}
-            </p>
-          </div>
-        )}
-      </section>
+      <BookInfoPanel
+        book={typedBook}
+        copies={copies}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-gray-700">

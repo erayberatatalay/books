@@ -105,3 +105,21 @@ export async function saveBookCoverIfNeeded(
 
   return stored;
 }
+
+/** Kitaba ait storage kapak dosyalarını siler (varsa). */
+export async function removeBookCoverFiles(bookId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data: files } = await admin.storage.from(BUCKET).list("", {
+      limit: 100,
+    });
+    const paths = (files ?? [])
+      .filter((f) => f.name.startsWith(`${bookId}.`))
+      .map((f) => f.name);
+    if (paths.length > 0) {
+      await admin.storage.from(BUCKET).remove(paths);
+    }
+  } catch {
+    // Storage yoksa veya erişilemezse sessizce devam et.
+  }
+}

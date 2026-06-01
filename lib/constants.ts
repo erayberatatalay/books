@@ -30,3 +30,11 @@ export const COPY_STATUS_LABELS: Record<CopyStatus, string> = {
   lost: "Kayıp",
   damaged: "Hasarlı",
 };
+
+export const LOOKUP_SOURCE_LABELS: Record<string, string> = {
+  harikakitap: "Harikakitap",
+  hardcover: "Hardcover",
+  google_books: "Google Books",
+  open_library: "Open Library",
+  manual: "Manuel",
+};

@@ -41,9 +41,19 @@ const inputClass =
 export function BookForm({
   initial,
   source,
+  bookId,
+  mode = "create",
+  submitLabel,
+  onSuccess,
+  onCancel,
 }: {
   initial?: Partial<LookupBook>;
   source?: string;
+  bookId?: string;
+  mode?: "create" | "edit";
+  submitLabel?: string;
+  onSuccess?: (result: { bookId: string; duplicate?: boolean }) => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(toFormState(initial));
@@ -63,24 +73,44 @@ export function BookForm({
     setSaving(true);
     setError(null);
 
+    const payload = {
+      title: form.title,
+      subtitle: form.subtitle || undefined,
+      author: form.author || undefined,
+      isbn_13: form.isbn_13 || undefined,
+      isbn_10: form.isbn_10 || undefined,
+      publisher: form.publisher || undefined,
+      published_year: form.published_year || undefined,
+      page_count: form.page_count ? Number(form.page_count) : undefined,
+      category: form.category || undefined,
+      cover_url: form.cover_url || undefined,
+      description: form.description || undefined,
+    };
+
     try {
+      if (mode === "edit" && bookId) {
+        const res = await fetch(`/api/books/${bookId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Kitap güncellenemedi.");
+          return;
+        }
+        if (onSuccess) {
+          onSuccess({ bookId });
+        } else {
+          router.refresh();
+        }
+        return;
+      }
+
       const res = await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: form.title,
-          subtitle: form.subtitle || undefined,
-          author: form.author || undefined,
-          isbn_13: form.isbn_13 || undefined,
-          isbn_10: form.isbn_10 || undefined,
-          publisher: form.publisher || undefined,
-          published_year: form.published_year || undefined,
-          page_count: form.page_count ? Number(form.page_count) : undefined,
-          category: form.category || undefined,
-          cover_url: form.cover_url || undefined,
-          description: form.description || undefined,
-          source: source ?? "manual",
-        }),
+        body: JSON.stringify({ ...payload, source: source ?? "manual" }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -88,11 +118,16 @@ export function BookForm({
         return;
       }
       if (data.book_id) {
-        router.push(`/books/${data.book_id}`);
+        if (onSuccess) {
+          onSuccess({ bookId: data.book_id, duplicate: data.duplicate });
+        } else {
+          router.push(`/books/${data.book_id}`);
+          router.refresh();
+        }
       } else {
         router.push("/books");
+        router.refresh();
       }
-      router.refresh();
     } catch {
       setError("Bağlantı hatası. Lütfen tekrar deneyin.");
     } finally {
@@ -243,13 +278,27 @@ export function BookForm({
 
       <ErrorMessage message={error} />
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
-      >
-        {saving ? "Kaydediliyor..." : "Kitabı Kaydet"}
-      </button>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            İptal
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+        >
+          {saving
+            ? "Kaydediliyor..."
+            : submitLabel ??
+              (mode === "edit" ? "Değişiklikleri Kaydet" : "Kitabı Kaydet")}
+        </button>
+      </div>
     </form>
   );
 }
